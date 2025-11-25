@@ -9,7 +9,7 @@ class ReaderWriter(object):
         self.dst_path = dst
 
         self.src_file = h5py.File(self.src_path, 'r', libver='latest')
-        self.dst_file = h5py.File(self.dst_path, 'w', libver='latest')
+        self.dst_file = h5py.File(self.dst_path, 'w', libver='latest', locking=False)
         self.dst_file.create_dataset('Data', shape=(0,), maxshape=(None,), dtype=self.src_file['Data'].dtype)
         self.dst_file.create_dataset('Status_log', shape=(0,), maxshape=(None,), dtype=self.src_file['Status_log'].dtype)
         self.dst_file.swmr_mode=True

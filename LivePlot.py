@@ -43,7 +43,7 @@ class LivePlot(object):
 
     frame_num = 0
 
-    max_interval = 0.10
+    max_interval = 0.10 / 60
 
     n_frames_per_shift = 20
 
@@ -83,7 +83,7 @@ class LivePlot(object):
 
 
     def initial_data(self, data_list):
-        self.x_vals = [data[self.x_label] for data in data_list]
+        self.x_vals = [data[self.x_label] / 60 for data in data_list]
 
         for y_label in self.y_labels:
             self.y_vals[y_label] = [self.transform(y_label, data[y_label]) for data in data_list]
@@ -100,7 +100,7 @@ class LivePlot(object):
             if axis_name not in axes_done:
                 axes_done.append(axis_name)
                 y_axis.clear()
-                y_axis.set_xlabel('Time (s)')
+                y_axis.set_xlabel('Time (min)')
                 y_axis.set_xlim([0, x_end + self.n_frames_per_shift * self.max_interval])
                 y_label = y_map[y_label]
                 y_axis.set_ylim([0, axis_map[y_label][0]])
@@ -135,7 +135,7 @@ class LivePlot(object):
     def animate(self, data):
         lines = []
         if data is not None and len(data) > 0:
-            self.x_vals.append(data[self.x_label])
+            self.x_vals.append(data[self.x_label] / 60)
             for y_label in self.y_labels:
                 self.y_vals[y_label].append(self.transform(y_label, data[y_label]))
 
@@ -159,8 +159,8 @@ class LivePlot(object):
         x_end = 0
         if len(self.x_vals) > 0:
             x_end = self.x_vals[-1]
+        self.x_axis.set_xlabel('Time (min)')
         axis = self.x_axis.twinx()
-        axis.set_xlabel('Time (s)')
         axis.set_xlim([0, x_end + self.n_frames_per_shift * self.max_interval])
         y_label = y_map[name]
         axis.set_ylim([0, axis_map[y_label][0]])

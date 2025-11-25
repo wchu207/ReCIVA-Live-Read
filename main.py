@@ -1,6 +1,9 @@
 import json
+import os
+
 from Application import Application
 import tkinter as tk
+
 
 def main():
     config = None
@@ -15,14 +18,20 @@ def main():
     if 'model_path' in config:
         model_path = config['model_path']
 
-    source_directory = None
-    if 'source_directory' in config:
-        source_directory = config['source_directory']
+    data_source = None
+    if 'data_source' in config:
+        data_source = config['data_source']
 
-    app = Application(root, dir=source_directory, model_path=model_path)
+    '''
+    path = os.path.dirname(data_source)
+    rw = ReaderWriter(data_source, os.path.join(path, 'test.h5'))
+    rw.convert()
+    app = Application(root, src=path, model_path=model_path)
     root.mainloop()
+    '''
 
-
+    app = Application(root, src=data_source, model_path=model_path)
+    root.mainloop()
 
 if __name__ == '__main__':
     main()

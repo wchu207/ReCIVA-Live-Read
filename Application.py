@@ -17,7 +17,7 @@ from preprocessing import ReCIVA_log_preprocessor
 
 
 class Application(tk.Frame):
-    def __init__(self, master=None, dir=None, model_path=None):
+    def __init__(self, master=None, src=None, model_path=None):
         super().__init__(master=master)
         self.root = master
         self.grid(row=0, column=0, sticky=tk.NSEW)
@@ -53,12 +53,12 @@ class Application(tk.Frame):
             'Pump L current': '#17becf'
         }
 
-        self.dir = dir
+        self.src = src
         self.create_controls()
         self.canvas_frame = tk.Frame(self)
         self.canvas_frame.grid(row=0, column=0, columnspan=3, sticky=tk.NSEW)
         self.pump_active_flag = tk.BooleanVar(self, value=False)
-        if self.dir is not None:
+        if self.src is not None:
             self.select_and_open_file()
             self.draw_plot()
         else:
@@ -114,13 +114,16 @@ class Application(tk.Frame):
         return lp
 
     def select_and_open_file(self):
-        files = [os.path.join(self.dir, basename) for basename in os.listdir(self.dir)]
-        files = [file for file in files if file.endswith('.h5')]
-        if len(files) > 0:
-            files = sorted(files, key=os.path.getmtime, reverse=True)
-            self.file_path = files[0]
-        else:
-            self.file_path = None
+        if os.path.isdir(self.src):
+            files = [os.path.join(self.src, basename) for basename in os.listdir(self.src)]
+            files = [file for file in files if file.endswith('.h5')]
+            if len(files) > 0:
+                files = sorted(files, key=os.path.getmtime, reverse=True)
+                self.file_path = files[0]
+            else:
+                self.file_path = None
+        elif os.path.isfile(self.src):
+            self.file_path = self.src
 
         if self.file_path is not None:
             if self.file is not None:
@@ -160,6 +163,8 @@ class Application(tk.Frame):
                     self.livetext.add('Success: Model accepts sample at 90% significance level')
                 self.livetext.text.config(state='disabled')
                 self.livetext.text.yview(tk.END)
+            else:
+                self.livetext.add('Error: no logs found')
         else:
             self.root.after(500, self.poll_logs)
 
