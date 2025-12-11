@@ -7,16 +7,14 @@ class LiveH5Reader(object):
     next_log_index = None
     target_labels = []
     time_label = 'Collection time'
-    current_flag = None
 
-    def __init__(self, file, target_labels, current_flag=None):
+    def __init__(self, file, target_labels):
         self.file = file
         self.target_labels = target_labels
         self.next_data_index = 0
         self.next_log_index = 0
         self.tol = 10
         self.complete = False
-        self.current_flag = current_flag
 
 
 
@@ -24,26 +22,17 @@ class LiveH5Reader(object):
         n_times_failed = 0
         while not self.complete:
             self.file['Data'].id.refresh()
-            current_len = self.file['Data'].shape[0]
-            columns = [self.time_label] + self.target_labels
-            new_entries = self.file['Data'].fields(columns)[self.next_data_index : current_len]
-            self.next_data_index = current_len
-            for entry in new_entries:
-                d = dict(zip(columns, entry))
-                if d[self.time_label] != 0:
-                    if 'Pump L current' in columns:
-                        self.current_flag.set(str(d['Pump L current'] >= 50))
-                    yield d
+            new_entries = self.read_all_data()
 
             if len(new_entries) == 0:
                 if self.next_data_index > 0:
                     if n_times_failed >= self.tol:
                         self.complete = True
-                        self.current_flag.set(False)
                     n_times_failed = n_times_failed + 1
                 yield None
             else:
                 n_times_failed = 0
+                yield new_entries
 
         return None
 

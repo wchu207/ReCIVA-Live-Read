@@ -28,7 +28,8 @@ class ReaderWriter(object):
             self.dst_file['Status_log'].resize((i + 1, ))
             self.dst_file['Status_log'][i] = logs[i]
             self.dst_file['Status_log'].flush()
-            time.sleep(0.5)
+            time.sleep(0.25)
+
 
         for i in tqdm(range(dataset.shape[0])):
             entry = dataset[i]
@@ -36,6 +37,7 @@ class ReaderWriter(object):
             self.dst_file['Data'][i] = entry
             self.dst_file['Data'].flush()
             time.sleep(0.15)
+
 
 
     def close(self):

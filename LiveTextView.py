@@ -5,7 +5,7 @@ class LiveTextView(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master=master)
         self.text = tk.Text(self, font=18, wrap="none", state='disabled', width=24, height=12)
-        self.text.tag_config('warning', background='yellow')
+        self.text.tag_config('warning', background='orange')
         self.text.tag_config('error', background='red')
         self.text.tag_config('time', foreground='blue')
         self.text.tag_config('success', background='lime')
@@ -22,24 +22,19 @@ class LiveTextView(tk.Frame):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        self.initial_time = None
-
-    def add(self, line):
+    def add(self, line, initial_time = None):
         time, msg = self.extract_time(line)
         time = self.parse_time(time)
 
         self.text.config(state='normal')
 
-        if self.initial_time is None:
-            if 'Training Pumps' in msg:
-                self.initial_time = time
-
         prefix = ''
-        if self.initial_time is not None and time is not None:
-            time_diff = (time - self.initial_time).total_seconds()
-            minutes = int(time_diff // 60)
-            seconds = int(time_diff % 60)
-            prefix = '[{:02d}:{:02d}] '.format(minutes, seconds)
+        if initial_time is not None and time is not None:
+            time_diff = (time - initial_time).total_seconds()
+            if time_diff >= 0:
+                minutes = int(time_diff // 60)
+                seconds = int(time_diff % 60)
+                prefix = '[{:02d}:{:02d}] '.format(minutes, seconds)
 
         tag = self.get_tag(msg)
 
@@ -72,12 +67,11 @@ class LiveTextView(tk.Frame):
             return 'success'
         return None
 
-    def add_all(self, lines):
+    def add_all(self, lines, initial_time = None):
         for line in lines:
-            self.add(line)
+            self.add(line, initial_time)
 
     def clear(self):
         self.text.config(state='normal')
         self.text.delete('1.0', 'end')
         self.text.config(state='disabled')
-        self.initial_time = None
