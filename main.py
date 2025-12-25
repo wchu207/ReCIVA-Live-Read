@@ -14,7 +14,6 @@ def main():
     root.title('Breath Collection View')
     root.geometry('1600x1200')
     root.minsize(400, 600)
-    root.state('zoomed')
     model_path = None
     if 'model_path' in config:
         model_path = config['model_path']

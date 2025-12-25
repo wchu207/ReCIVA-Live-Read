@@ -56,6 +56,8 @@ class LiveH5Reader(object):
         log_list = [log.decode('utf-8') for log in log_list]
         return log_list
 
+
+
     def terminate(self):
         self.complete=True
 

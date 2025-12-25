@@ -4,7 +4,7 @@ from datetime import datetime
 class LiveTextView(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master=master)
-        self.text = tk.Text(self, font=18, wrap="none", state='disabled', width=24, height=12)
+        self.text = tk.Text(self, font=12, wrap="none", state='disabled', width=24, height=8)
         self.text.tag_config('warning', background='orange')
         self.text.tag_config('error', background='red')
         self.text.tag_config('time', foreground='blue')
@@ -22,19 +22,13 @@ class LiveTextView(tk.Frame):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-    def add(self, line, initial_time = None):
-        time, msg = self.extract_time(line)
-        time = self.parse_time(time)
+    def add(self, line, log_parser):
+        time, msg = log_parser.extract_msg(line)
+        time = log_parser.extract_time(time)
 
         self.text.config(state='normal')
 
-        prefix = ''
-        if initial_time is not None and time is not None:
-            time_diff = (time - initial_time).total_seconds()
-            if time_diff >= 0:
-                minutes = int(time_diff // 60)
-                seconds = int(time_diff % 60)
-                prefix = '[{:02d}:{:02d}] '.format(minutes, seconds)
+        prefix = log_parser.get_prefix(time)
 
         tag = self.get_tag(msg)
 
@@ -45,19 +39,6 @@ class LiveTextView(tk.Frame):
         self.text.insert('end', f'{msg}\n', tag)
         self.text.config(state='disabled')
 
-    def extract_time(self, line):
-        parts = line.split(', ')
-        if len(parts) > 1:
-            return parts[0], parts[1]
-        return '', line
-
-    def parse_time(self, time):
-        parts = time.split("+")
-        if len(parts) > 1:
-            time = parts[0]
-            return datetime.strptime(time, '%Y-%m-%dT%H:%M:%S')
-        return None
-
     def get_tag(self, msg):
         if msg.startswith('Warning'):
             return 'warning'
@@ -67,9 +48,9 @@ class LiveTextView(tk.Frame):
             return 'success'
         return None
 
-    def add_all(self, lines, initial_time = None):
+    def add_all(self, lines, log_parser):
         for line in lines:
-            self.add(line, initial_time)
+            self.add(line, log_parser)
 
     def clear(self):
         self.text.config(state='normal')

@@ -1,4 +1,1 @@
-{
-  "data_source": "E:\\ReCIVA_live_read\\data\\h5\\IDEAL_20-0008_EX_20230815T181217.h5",
-  "model_path": "model.pkl"
-}
+{"data_source": "", "model_path": "model.pkl", "plot_params": {"left": 0.025, "bottom": 0.075, "top": 1, "wspace": 0.2, "hspace": 0.2, "right_adjust_per_axis": 0.06}}

@@ -1,7 +1,11 @@
+import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import animation
 from matplotlib import patches
 import matplotlib.backends.backend_tkagg
+from matplotlib.backends.backend_pdf import PdfPages
+
+from MetadataExtractor import MetadataExtractor
 
 transform_map = {
     'Pressure': lambda x: x / 1000,
@@ -59,7 +63,7 @@ class LivePlot(object):
         'Pressure L downstream': lambda x: x / 1000
     }
 
-    def __init__(self, x_label, x_range_limit, y_labels, progress_label, max_progress, colors_map):
+    def __init__(self, x_label, x_range_limit, y_labels, progress_label, max_progress, colors_map, plot_params=None):
         self.x_label = x_label
         self.progress_label = progress_label
         self.max_progress = max_progress
@@ -77,8 +81,13 @@ class LivePlot(object):
 
         plt.switch_backend('tkagg')
         matplotlib.rcParams.update({'font.size': 14})
-        self.fig = plt.figure(figsize=(8,12))
-        self.fig.subplots_adjust(right=1 - 0.06 * self.count_axes(), top=1, left=0.025, bottom=0.075)
+        self.fig = plt.figure(figsize=(24,16))
+        if plot_params is not None:
+            plot_params['right'] = 1 - plot_params['right_adjust_per_axis'] * self.count_axes()
+            del plot_params['right_adjust_per_axis']
+            self.fig.subplots_adjust(**plot_params)
+        else:
+            self.fig.subplots_adjust(right=1 - 0.06 * self.count_axes(), top=1, left=0.025, bottom=0.075)
 
         self.grid = self.fig.add_gridspec(3, 1, height_ratios=[0.05, 0.05, 0.90], hspace=0.025)
 
@@ -101,7 +110,6 @@ class LivePlot(object):
 
         self.timer = None
         self.timer_text = self.error_plot.text(1 + 0.035/2, 0.5, '00:00', ha='center', va='center', fontsize=14, clip_on=False)
-        self.timer_time = 0
         self.error_plot.add_patch(patches.Rectangle((1, 0), 0.035, 1, edgecolor='black', facecolor='none', clip_on=False))
 
         self.x_axis = self.fig.add_subplot(self.grid[2, 0])
@@ -151,7 +159,7 @@ class LivePlot(object):
                 y_axis.spines['right'].set_position(('axes', 1 + i * 0.075))
                 i = i + 1
 
-        lines = self.draw_lines() + self.draw_progress() + self.draw_errors() + [self.timer_time]
+        lines = self.draw_lines() + self.draw_progress() + self.draw_errors() + [self.timer_text]
 
         return lines
 
@@ -188,7 +196,7 @@ class LivePlot(object):
         if self.frame_num == 1 or self.frame_num % self.n_frames_per_shift == 0:
             lines = self.initial_frame()
         else:
-            lines = self.draw_lines() + self.draw_progress() + self.draw_errors() + [self.timer_time]
+            lines = self.draw_lines() + self.draw_progress() + self.draw_errors() + [self.timer_text]
 
         return lines
 
@@ -284,13 +292,63 @@ class LivePlot(object):
         self.timer_text.set(text='00:00')
         self.timer = self.fig.canvas.new_timer(interval=1000, callbacks=[(self.increment_timer, [], {})])
         self.timer.start()
+        self.increment_timer()
 
     def increment_timer(self):
         if len(self.x_vals) > 0:
             time = int(self.x_vals[-1] * 60)
-            self.timer_time += 1
             self.timer_text.set(text=f'{str(time // 60).zfill(2)}:{str(time % 60).zfill(2)}')
+
+    def get_configs(self):
+        config = self.fig.subplotpars.__dict__
+        config['right_adjust_per_axis'] = (1 - config['right']) / self.count_axes()
+        del config['right']
+        return config
 
     def close(self):
         self.stop_timer()
         plt.close(self.fig)
+
+    def save(self, path, file):
+        with PdfPages(path) as pdf:
+            self.ani.to_html5_video()
+            plot_mat = self.fig_to_mat(self.fig)
+            summary_mat = self.fig_to_mat(self.get_summary_fig(file))
+            fig = plt.figure(figsize=(24, 16), frameon=False)
+            ax = fig.subplots()
+            ax.xaxis.set_visible(False)
+            ax.yaxis.set_visible(False)
+            ax.spines['top'].set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+
+            ax.imshow(np.vstack((summary_mat, plot_mat)))
+            pdf.savefig(fig, bbox_inches='tight')
+
+    def fig_to_mat(self, fig):
+        fig.canvas.draw()
+        buf = fig.canvas.tostring_rgb()
+        ncols, nrows = fig.canvas.get_width_height()
+        return np.fromstring(buf, dtype=np.uint8).reshape(nrows, ncols, 3)
+
+    def get_summary_fig(self, file):
+        metadata_extractor = MetadataExtractor()
+        metadata = metadata_extractor.extract(file)
+        keys = ['ReCIVA serial number', 'File_creation_time', 'Total collection time', 'Collection per tube L', 'Cycle count']
+        table = []
+        for key in keys:
+            if key in metadata:
+                table.append([key, metadata[key]])
+            else:
+                table.append([key, ""])
+        fig = plt.figure(figsize=(24, 4), frameon=False)
+        ax = fig.subplots()
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.table(table, bbox=(0, 0.5, 1, 2/4))
+        return fig
