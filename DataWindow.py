@@ -176,7 +176,7 @@ class DataWindow(tk.PanedWindow):
         logs = self.reader.read_all_logs()
         self.log_parser.set_initial_time(logs)
         self.livetext.clear()
-        self.livetext.add_all(logs, self.log_parser)
+        self.livetext.add_all_and_scroll_to_bottom(logs, self.log_parser)
         self.livetext.text.yview(tk.END)
 
         if self.liveplot is not None:
@@ -221,16 +221,12 @@ class DataWindow(tk.PanedWindow):
 
     def poll_logs(self):
         with self.log_lock:
-            y = self.livetext.y_scroll.get()
-            if len(y) == 2:
-                _, y_end = y
-                logs = self.reader.read_all_logs()
-                self.log_parser.set_initial_time(logs)
-                self.livetext.add_all(logs, self.initial_time)
-                self.add_errors_from_logs(logs)
+            logs = self.reader.read_all_logs()
+            self.log_parser.set_initial_time(logs)
+            self.add_errors_from_logs(logs)
+            self.livetext.add_all_and_scroll_to_bottom(logs)
 
-                if float(y_end) > 0.95:
-                    self.livetext.text.yview(tk.END)
+
         if self.reader.complete:
             self.terminate_file()
         else:

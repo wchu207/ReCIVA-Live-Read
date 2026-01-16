@@ -6,7 +6,7 @@ if os.path.isdir('dist/BreathCollectionLiveView'):
 
 PyInstaller.__main__.run([
     'main.py',
-    '--windowed',
+    '--noconsole',
     '--hidden-import=\'PIL._tkinter._finder\'',
     '--exclude-module=PyQt5',
     '--name=BreathCollectionLiveView'

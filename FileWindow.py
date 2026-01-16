@@ -1,29 +1,36 @@
+import os
+import multiprocessing
+import threading
 import tkinter as tk
 from tkinter import filedialog
 
 import h5py
 import pandas as pd
 from lightgbm import LGBMClassifier
+from tqdm import tqdm
 
 from LiveH5Reader import LiveH5Reader
 from LivePlot import LivePlot
 from LogParser import LogParser
 from preprocessing import ReCIVA_log_preprocessor
+from pdfrw import PdfWriter, PdfReader
 
 
 class FileWindow(tk.Frame):
-    def __init__(self, master, model: LGBMClassifier, colors_map, *args, **kwargs):
+    def __init__(self, master, model: LGBMClassifier, out_dir, colors_map, *args, logging_callback=None,  **kwargs):
         super().__init__(*args, **kwargs)
         self.master = master
         self.model = model
+        self.out_dir = out_dir
         self.file_listbox = tk.Listbox(self)
         self.file_listbox.grid(row=0, column=0, sticky=tk.NSEW)
 
         self.colors_map = colors_map
 
         self.create_controls()
+        self.log = logging_callback
 
-        self.widget_lock = WidgetLock([self.check_files_btn, self.clear_files_btn])
+        self.widget_lock = WidgetLock([self.select_files_btn, self.check_files_btn, self.clear_files_btn, self.plot_files_btn])
         self.log_parser = LogParser()
 
         self.scores = []
@@ -104,31 +111,71 @@ class FileWindow(tk.Frame):
                 self.file_listbox.itemconfig(i, bg='lime')
 
     def plot_files(self):
+        threading.Thread(target=self._plot_files).start()
+
+    def _plot_files(self):
         with self.widget_lock:
             plot_params = self.master.get_plot_params()
             targets = self.master.get_targets()
-            if self.file_listbox.size() > 0:
-                for path in self.file_listbox.get(0, self.file_listbox.size()):
-                    file = h5py.File(path, 'r', libver='latest', locking=False)
-                    self.plot_file(file, targets, plot_params)
-                    file.close()
 
-    def plot_file(self, file, targets, plot_params):
+            if self.file_listbox.size() > 0:
+                args_list = []
+                for path in self.file_listbox.get(0, self.file_listbox.size()):
+                    filename, _ = os.path.splitext(os.path.basename(path))
+                    args_list.append((path, targets, plot_params, self.colors_map, self.log_parser, self.out_dir))
+                if self.log is not None:
+                    self.log(f'Processing selected files and saving to {self.out_dir}...')
+                p = multiprocessing.Pool(16, maxtasksperchild=1)
+                results = p.starmap(plot_file, args_list)
+                results = [r for r in results if not type(r) == str]
+
+
+                summary_df = pd.DataFrame(results)
+                summary_df.set_index('File').to_excel(os.path.join(self.out_dir, 'summary.xlsx'))
+
+                p = multiprocessing.Pool(16)
+                files = summary_df['File'].copy()
+                files = [os.path.join(self.out_dir, file + '.pdf') for file in files]
+                merger = PdfWriter()
+
+                for file in files:
+                    if os.path.isfile(file):
+                        merger.addpages(PdfReader(file).pages)
+                merger.write(os.path.join(self.out_dir, 'summary.pdf'))
+
+                if self.log is not None:
+                    self.log(f'Finished processing files')
+                    self.log(f'Success Saved summary.xlsx and summary.pdf to {self.out_dir}...')
+
+
+def plot_file(path, targets, plot_params, colors_map, log_parser, out_dir):
+    filename, _ = os.path.splitext(os.path.basename(path))
+    try:
+        file = h5py.File(path, 'r', libver='latest', locking=False)
         reader = LiveH5Reader(file, targets + ['Accumulated volume L', 'Pump L current'])
 
         liveplot = LivePlot('Collection time', False, targets, 'Accumulated volume L', 1,
-                                 colors_map=self.colors_map, plot_params=plot_params)
+                                     colors_map=colors_map, plot_params=plot_params)
         liveplot.initial_data(reader.read_all_data())
 
         logs = reader.read_all_logs()
-        self.log_parser.set_initial_time(logs)
-        warnings, errors = self.log_parser.get_warnings_and_errors(logs)
+        log_parser.set_initial_time(logs)
+        warnings, errors = log_parser.get_warnings_and_errors(logs)
         liveplot.add_errors(warnings, errors)
 
         liveplot.read(reader.read_data())
         liveplot.increment_timer()
 
-        liveplot.save('Test.pdf', file)
+
+
+
+        os.makedirs(out_dir, exist_ok=True)
+        metadata = liveplot.save(os.path.join(out_dir, filename + '.pdf'), file)
+        metadata['File'] = filename
+        liveplot.close()
+        return metadata
+    except Exception as e:
+        raise f'Error Failed to process {filename} due to {repr(e)}'
 
 class WidgetLock:
     def __init__(self, widgets):

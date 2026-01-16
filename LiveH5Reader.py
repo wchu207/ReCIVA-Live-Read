@@ -25,10 +25,9 @@ class LiveH5Reader(object):
             new_entries = self.read_all_data()
 
             if len(new_entries) == 0:
-                if self.next_data_index > 0:
-                    if n_times_failed >= self.tol:
-                        self.complete = True
-                    n_times_failed = n_times_failed + 1
+                if n_times_failed >= self.tol:
+                    self.complete = True
+                n_times_failed = n_times_failed + 1
                 yield None
             else:
                 n_times_failed = 0

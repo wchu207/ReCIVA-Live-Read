@@ -73,6 +73,7 @@ class LivePlot(object):
 
         self.x_vals = []
         self.y_axes = {}
+        self.y_vals = {}
         self.frame_num = 0
 
         self.colors_map = colors_map
@@ -82,7 +83,7 @@ class LivePlot(object):
         plt.switch_backend('tkagg')
         matplotlib.rcParams.update({'font.size': 14})
         self.fig = plt.figure(figsize=(24,16))
-        if plot_params is not None:
+        if plot_params is not None and 'right_adjust_per_axis' in plot_params:
             plot_params['right'] = 1 - plot_params['right_adjust_per_axis'] * self.count_axes()
             del plot_params['right_adjust_per_axis']
             self.fig.subplots_adjust(**plot_params)
@@ -173,8 +174,11 @@ class LivePlot(object):
         lines = []
         for i, y_label in enumerate(self.y_labels):
             name, axis = self.get_axis(y_label)
-            lines.extend(
-                axis.plot(self.x_vals, self.y_vals[y_label], label=y_label, color=self.colors_map[y_label]))
+            try:
+                lines.extend(
+                    axis.plot(self.x_vals, self.y_vals[y_label], label=y_label, color=self.colors_map[y_label]))
+            except ValueError:
+                print(f'Failed with {y_label}, x size {len(self.x_vals)}, y size {(len(self.y_vals[y_label]))}')
         return lines
 
     def animate(self, data):
@@ -312,9 +316,18 @@ class LivePlot(object):
     def save(self, path, file):
         with PdfPages(path) as pdf:
             self.ani.to_html5_video()
+            legend = self.fig.legend(loc=(0.05, 0.85 - 0.025 * self.count_axes()))
             plot_mat = self.fig_to_mat(self.fig)
-            summary_mat = self.fig_to_mat(self.get_summary_fig(file))
-            fig = plt.figure(figsize=(24, 16), frameon=False)
+            legend.remove()
+
+            metadata_extractor = MetadataExtractor()
+            metadata, keys = metadata_extractor.extract(file)
+
+            summary_fig = self.get_summary_fig(metadata, keys)
+            summary_mat = self.fig_to_mat(summary_fig)
+            plt.close(summary_fig)
+
+            fig = plt.figure(num=12, figsize=(24, 16), frameon=False)
             ax = fig.subplots()
             ax.xaxis.set_visible(False)
             ax.yaxis.set_visible(False)
@@ -325,6 +338,9 @@ class LivePlot(object):
 
             ax.imshow(np.vstack((summary_mat, plot_mat)))
             pdf.savefig(fig, bbox_inches='tight')
+            plt.close(fig)
+
+            return metadata
 
     def fig_to_mat(self, fig):
         fig.canvas.draw()
@@ -332,17 +348,17 @@ class LivePlot(object):
         ncols, nrows = fig.canvas.get_width_height()
         return np.fromstring(buf, dtype=np.uint8).reshape(nrows, ncols, 3)
 
-    def get_summary_fig(self, file):
-        metadata_extractor = MetadataExtractor()
-        metadata = metadata_extractor.extract(file)
-        keys = ['ReCIVA serial number', 'File_creation_time', 'Total collection time', 'Collection per tube L', 'Cycle count']
+    def get_summary_fig(self, metadata, keys):
         table = []
         for key in keys:
             if key in metadata:
-                table.append([key, metadata[key]])
+                try:
+                    table.append([key, '%.2f' % metadata[key]])
+                except:
+                    table.append([key, metadata[key]])
             else:
                 table.append([key, ""])
-        fig = plt.figure(figsize=(24, 4), frameon=False)
+        fig = plt.figure(num=11, figsize=(24, 6), frameon=False)
         ax = fig.subplots()
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
@@ -350,5 +366,5 @@ class LivePlot(object):
         ax.spines['bottom'].set_visible(False)
         ax.spines['left'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        ax.table(table, bbox=(0, 0.5, 1, 2/4))
+        ax.table(table, bbox=(0, 0.0675, 1, 1))
         return fig

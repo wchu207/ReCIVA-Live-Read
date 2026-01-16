@@ -4,9 +4,13 @@ import os
 from Application import Application
 import tkinter as tk
 
+from multiprocessing import freeze_support
+
+
 
 def main():
     config = None
+    freeze_support()
     with open('config.json', 'r') as f:
         config = json.load(f)
 
@@ -22,7 +26,11 @@ def main():
     if 'data_source' in config:
         data_source = config['data_source']
 
-    app = Application(root, src=data_source, model_path=model_path)
+    out_dir = 'Output'
+    if 'output_directory' in config:
+        out_dir = config['output_directory']
+
+    app = Application(root, src=data_source, model_path=model_path, output_directory = out_dir)
     root.mainloop()
 
 if __name__ == '__main__':

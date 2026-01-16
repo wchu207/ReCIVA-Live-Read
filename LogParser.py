@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 
 
 class LogParser:
@@ -9,10 +10,18 @@ class LogParser:
         if s is not None:
             parts = s.split(', ')
             if len(parts) > 1:
-                return parts[0], parts[1]
+                msg = ", ".join(parts[1:])
+                msg = self.parse_msg(msg)
+                return parts[0], msg
             elif len(parts) == 1:
-                return None, parts[0]
+                msg = self.parse_msg(parts[0])
+                return None, msg
         return None, None
+
+    def parse_msg(self, msg):
+        msg = re.sub('[\\[\\]()]', '', msg)
+        msg = re.sub('-', ' ', msg)
+        return msg
 
     def extract_time(self, s):
         if s is not None:

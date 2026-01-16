@@ -7,7 +7,7 @@ from FileWindow import FileWindow
 import _pickle as pickle
 
 class Application(ttk.PanedWindow):
-    def __init__(self, master=None, src=None, model_path=None):
+    def __init__(self, master=None, src=None, model_path=None, output_directory='Output'):
         ttk.Style().configure('Sash', sashthickness=6)
         super().__init__(master=master, orient='horizontal')
 
@@ -18,6 +18,7 @@ class Application(ttk.PanedWindow):
                     self.model = pickle.load(file)
                 except:
                     pass
+        self.out_dir = output_directory
 
         self.colors_map = {
             'Flow rate L upstream': '#ff7f0e',
@@ -38,12 +39,15 @@ class Application(ttk.PanedWindow):
             master.grid_columnconfigure(0, weight=1)
 
         self.left_panes = DataWindow(self, src, self.model, self.colors_map)
-        self.right_panes = FileWindow(self, self.model, self.colors_map)
+        self.right_panes = FileWindow(self, self.model, self.out_dir, self.colors_map, logging_callback=self.log)
 
         self.add(self.left_panes, weight=3)
         self.add(self.right_panes, weight=1)
 
         self.root.protocol('WM_DELETE_WINDOW', self.close)
+
+    def log(self, s):
+        self.left_panes.livetext.add_and_scroll_to_bottom(s)
 
     def get_plot_params(self):
         plot_params = None

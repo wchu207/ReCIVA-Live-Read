@@ -22,14 +22,17 @@ class LiveTextView(tk.Frame):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-    def add(self, line, log_parser):
-        time, msg = log_parser.extract_msg(line)
-        time = log_parser.extract_time(time)
+
+    def add(self, line, log_parser = None):
+        prefix = ''
+        if log_parser is not None:
+            time, msg = log_parser.extract_msg(line)
+            time = log_parser.extract_time(time)
+            prefix = log_parser.get_prefix(time)
+        else:
+            msg = line
 
         self.text.config(state='normal')
-
-        prefix = log_parser.get_prefix(time)
-
         tag = self.get_tag(msg)
 
         if len(prefix) > 0:
@@ -56,3 +59,19 @@ class LiveTextView(tk.Frame):
         self.text.config(state='normal')
         self.text.delete('1.0', 'end')
         self.text.config(state='disabled')
+
+    def add_and_scroll_to_bottom(self, line, log_parser=None):
+        y = self.y_scroll.get()
+        self.add(line, log_parser)
+        if len(y) == 2:
+            _, y_end = y
+            if float(y_end) > 0.95:
+                self.text.yview(tk.END)
+
+    def add_all_and_scroll_to_bottom(self, lines, log_parser=None):
+        y = self.y_scroll.get()
+        self.add_all(lines, log_parser)
+        if len(y) == 2:
+            _, y_end = y
+            if float(y_end) > 0.95:
+                self.text.yview(tk.END)
